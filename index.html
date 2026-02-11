@@ -165,7 +165,56 @@
     function filterCustomers() {
         const term = document.getElementById('searchInput').value.toLowerCase();
         displayCustomers(customers.filter(c => c.name.toLowerCase().includes(term)));
-    }
+    }<div id="instructions" style="font-size: 0.8em; background: #e3f2fd; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+    <strong>How to Import:</strong> Save your Excel file as a <strong>.CSV</strong>. Ensure the columns are in this order: Name, Email, Phone, Last Called, Notes.
+</div>
+
+<script>
+function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        
+        // 1. Break the file into separate lines
+        const lines = text.split(/\r?\n/); 
+        
+        // 2. Remove the header row (the titles)
+        const dataRows = lines.slice(1);
+
+        dataRows.forEach(line => {
+            if (line.trim() === "") return; // Skip empty lines
+
+            // 3. Split the line by commas
+            const columns = line.split(',');
+
+            // 4. Create a new customer object from the columns
+            const newCustomer = {
+                name: columns[0] || "Unknown",
+                email: columns[1] || "",
+                phone: columns[2] || "",
+                lastCalled: columns[3] || "Never",
+                notes: columns[4] || ""
+            };
+
+            // 5. Add to our main list
+            customers.push(newCustomer);
+        });
+
+        // 6. Save and Refresh
+        saveToStorage();
+        displayCustomers();
+        alert("Import Successful! " + dataRows.length + " contacts added.");
+        
+        // Clear the file input so you can import again later
+        event.target.value = '';
+    };
+
+    reader.readAsText(file);
+}
+</script>
 </script>
 </body>
 </html>
