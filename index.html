@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Business CRM with Export</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 400px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        textarea { height: 100px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .export-btn { background-color: #6f42c1; margin-top: 20px; }
+        .list-item { background: #f8f9fa; margin-bottom: 8px; padding: 12px; border-radius: 6px; border-left: 4px solid #007bff; cursor: pointer; position: relative; }
+        .delete-btn { position: absolute; right: 10px; top: 12px; color: red; font-weight: bold; }
+        .hidden { display: none; }
+        .back-btn { background-color: #6c757d; margin-bottom: 10px; }
+    </style>
+</head>
+<body onload="loadCustomers()">
+
+<div class="container">
+    <div id="listView">
+        <h2>My Business CRM</h2>
+        <input type="text" id="searchInput" placeholder="Search..." onkeyup="filterCustomers()">
+        <hr>
+        <h4>Add New:</h4>
+        <input type="text" id="custName" placeholder="Full Name">
+        <input type="email" id="custEmail" placeholder="Email">
+        <input type="tel" id="custPhone" placeholder="Phone">
+        <button onclick="addCustomer()">Add Customer</button>
+        
+        <h3>Customer List</h3>
+        <ul id="customerList" style="list-style: none; padding: 0;"></ul>
+        
+        <button onclick="exportToCSV()" class="export-btn">📥 Export to Excel (CSV)</button>
+    </div>
+
+    <div id="detailsView" class="hidden">
+        <button class="back-btn" onclick="showList()">← Back</button>
+        <h2 id="detailTitle"></h2>
+        <p id="detailEmail"></p>
+        <p id="detailPhone"></p>
+        <button onclick="makeCall()" style="background-color: #28a745;">📞 Call Now</button>
+        <hr>
+        <textarea id="custNotes" placeholder="Notes..."></textarea>
+        <button onclick="saveNotes()">Save Notes</button>
+    </div>
+</div>
+
+<script>
+    let customers = JSON.parse(localStorage.getItem('myCustomers')) || [];
+    let currentEditIndex = null;
+
+    function displayCustomers(filteredArray = null) {
+        const listElement = document.getElementById('customerList');
+        listElement.innerHTML = '';
+        const listToDisplay = filteredArray || customers;
+        listToDisplay.forEach((customer) => {
+            const li = document.createElement('li');
+            li.className = 'list-item';
+            const originalIndex = customers.indexOf(customer);
+            li.innerHTML = `<div onclick="showDetails(${originalIndex})"><strong>${customer.name}</strong><br><small>${customer.phone || ''}</small></div>
+                            <span class="delete-btn" onclick="deleteCustomer(${originalIndex}); event.stopPropagation();">X</span>`;
+            listElement.appendChild(li);
+        });
+    }
+
+    function addCustomer() {
+        const name = document.getElementById('custName').value;
+        const email = document.getElementById('custEmail').value;
+        const phone = document.getElementById('custPhone').value;
+        if (name && email) {
+            customers.push({ name, email, phone, notes: "" });
+            saveToStorage();
+            displayCustomers();
+            document.getElementById('custName').value = '';
+            document.getElementById('custEmail').value = '';
+            document.getElementById('custPhone').value = '';
+        }
+    }
+
+    // --- NEW: EXPORT LOGIC ---
+    function exportToCSV() {
+        if (customers.length === 0) {
+            alert("No customers to export!");
+            return;
+        }
+
+        // 1. Create the Header row
+        let csvContent = "Name,Email,Phone,Notes\n";
+
+        // 2. Add each customer as a row
+        customers.forEach(c => {
+            // Clean notes of any commas so they don't break the CSV format
+            let cleanNotes = c.notes.replace(/,/g, " ");
+            csvContent += `${c.name},${c.email},${c.phone},${cleanNotes}\n`;
+        });
+
+        // 3. Create a download link
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', 'my_customers.csv');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function showDetails(index) {
+        currentEditIndex = index;
+        const c = customers[index];
+        document.getElementById('detailTitle').innerText = c.name;
+        document.getElementById('detailEmail').innerText = "Email: " + c.email;
+        document.getElementById('detailPhone').innerText = "Phone: " + (c.phone || "N/A");
+        document.getElementById('custNotes').value = c.notes || "";
+        document.getElementById('listView').classList.add('hidden');
+        document.getElementById('detailsView').classList.remove('hidden');
+    }
+
+    function saveNotes() {
+        customers[currentEditIndex].notes = document.getElementById('custNotes').value;
+        saveToStorage();
+        alert("Saved!");
+    }
+
+    function makeCall() {
+        window.location.href = "tel:" + customers[currentEditIndex].phone;
+    }
+
+    function showList() {
+        document.getElementById('listView').classList.remove('hidden');
+        document.getElementById('detailsView').classList.add('hidden');
+        displayCustomers();
+    }
+
+    function deleteCustomer(index) {
+        if(confirm("Delete?")) {
+            customers.splice(index, 1);
+            saveToStorage();
+            displayCustomers();
+        }
+    }
+
+    function saveToStorage() { localStorage.setItem('myCustomers', JSON.stringify(customers)); }
+    function loadCustomers() { displayCustomers(); }
+    function filterCustomers() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        displayCustomers(customers.filter(c => c.name.toLowerCase().includes(term)));
+    }
+</script>
+</body>
+</html>
