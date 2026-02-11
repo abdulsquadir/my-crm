@@ -1,20 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Business CRM Pro</title>
+    <title>Business CRM Pro Max</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 400px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        textarea { height: 100px; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .export-btn { background-color: #6f42c1; margin-top: 20px; }
-        .list-item { background: #f8f9fa; margin-bottom: 8px; padding: 12px; border-radius: 6px; border-left: 4px solid #007bff; cursor: pointer; position: relative; }
-        .delete-btn { position: absolute; right: 10px; top: 12px; color: red; font-weight: bold; }
+        :root {
+            --primary-color: #1a237e;
+            --accent-color: #00c853;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background-color: var(--bg-color); display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 400px; background: var(--card-bg); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { color: var(--primary-color); text-align: center; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background-color: var(--primary-color); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .list-item { background: #fff; margin-bottom: 10px; padding: 15px; border-radius: 12px; border: 1px solid #eee; border-left: 5px solid var(--primary-color); position: relative; }
+        .delete-btn { position: absolute; right: 10px; top: 15px; color: #ff5252; font-weight: bold; cursor: pointer; }
         .hidden { display: none; }
-        .back-btn { background-color: #6c757d; margin-bottom: 10px; }
-        .timestamp { font-size: 0.85em; color: #666; font-style: italic; margin-top: 5px; }
+        .secondary-btn { background-color: #6c757d; font-size: 0.9em; }
+        .import-btn { background-color: #ff9800; }
+        .timestamp { font-size: 0.8em; color: #757575; }
     </style>
 </head>
 <body onload="loadCustomers()">
@@ -22,25 +29,28 @@
 <div class="container">
     <div id="listView">
         <h2>My Business CRM</h2>
-        <input type="text" id="searchInput" placeholder="Search..." onkeyup="filterCustomers()">
+        <input type="text" id="searchInput" placeholder="Search contacts..." onkeyup="filterCustomers()">
         <hr>
-        <input type="text" id="custName" placeholder="Full Name">
-        <input type="email" id="custEmail" placeholder="Email">
+        <input type="text" id="custName" placeholder="Name">
         <input type="tel" id="custPhone" placeholder="Phone">
-        <button onclick="addCustomer()">Add Customer</button>
+        <button onclick="addCustomer()">+ Add Customer</button>
+        
+        <h3>Contacts</h3>
         <ul id="customerList" style="list-style: none; padding: 0;"></ul>
-        <button onclick="exportToCSV()" class="export-btn">📥 Export to Excel</button>
+        
+        <button onclick="exportToCSV()" class="secondary-btn">📥 Export Backup (CSV)</button>
+        
+        <button onclick="document.getElementById('fileInput').click()" class="import-btn">📤 Import Backup (CSV)</button>
+        <input type="file" id="fileInput" class="hidden" accept=".csv" onchange="importCSV(event)">
     </div>
 
     <div id="detailsView" class="hidden">
-        <button class="back-btn" onclick="showList()">← Back</button>
+        <button onclick="showList()" class="secondary-btn">← Back</button>
         <h2 id="detailTitle"></h2>
-        <p id="detailEmail"></p>
         <p id="detailPhone"></p>
         <p id="lastContacted" class="timestamp"></p>
-        <button onclick="makeCall()" style="background-color: #28a745;">📞 Call & Record Time</button>
-        <hr>
-        <textarea id="custNotes" placeholder="Notes..."></textarea>
+        <button onclick="makeCall()" style="background-color: var(--accent-color);">📞 Call Now</button>
+        <textarea id="custNotes" placeholder="Interaction notes..."></textarea>
         <button onclick="saveNotes()">Save Notes</button>
     </div>
 </div>
@@ -53,76 +63,103 @@
         const listElement = document.getElementById('customerList');
         listElement.innerHTML = '';
         const listToDisplay = filteredArray || customers;
-        listToDisplay.forEach((customer) => {
+        listToDisplay.forEach((c) => {
             const li = document.createElement('li');
             li.className = 'list-item';
-            const originalIndex = customers.indexOf(customer);
-            li.innerHTML = `<div onclick="showDetails(${originalIndex})"><strong>${customer.name}</strong><br><small>${customer.phone || ''}</small></div>
-                            <span class="delete-btn" onclick="deleteCustomer(${originalIndex}); event.stopPropagation();">X</span>`;
+            const idx = customers.indexOf(c);
+            li.innerHTML = `<div onclick="showDetails(${idx})"><strong>${c.name}</strong><br><small>${c.phone}</small></div>
+                            <span class="delete-btn" onclick="deleteCustomer(${idx}); event.stopPropagation();">X</span>`;
             listElement.appendChild(li);
         });
     }
 
     function addCustomer() {
         const name = document.getElementById('custName').value;
-        const email = document.getElementById('custEmail').value;
         const phone = document.getElementById('custPhone').value;
-        if (name && email) {
-            // Added 'lastCalled' property
-            customers.push({ name, email, phone, notes: "", lastCalled: "Never" });
+        if (name) {
+            customers.push({ name, phone, notes: "", lastCalled: "Never" });
             saveToStorage();
             displayCustomers();
             document.getElementById('custName').value = '';
-            document.getElementById('custEmail').value = '';
             document.getElementById('custPhone').value = '';
         }
     }
 
-    function makeCall() {
-        const phone = customers[currentEditIndex].phone;
-        if (phone) {
-            // 1. Get the current date and time
-            const now = new Date();
-            const timestamp = now.toLocaleDateString() + " at " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            // 2. Update the customer data
-            customers[currentEditIndex].lastCalled = timestamp;
+    function importCSV(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const rows = text.split('\n').slice(1); // Skip header
+            rows.forEach(row => {
+                const cols = row.split(',');
+                if (cols.length >= 2) {
+                    customers.push({
+                        name: cols[0],
+                        email: cols[1] || "",
+                        phone: cols[2] || "",
+                        lastCalled: cols[3] || "Never",
+                        notes: cols[4] || ""
+                    });
+                }
+            });
             saveToStorage();
-            
-            // 3. Update the screen
-            document.getElementById('lastContacted').innerText = "Last Contacted: " + timestamp;
-            
-            // 4. Actually dial the number
-            window.location.href = "tel:" + phone;
-        }
+            displayCustomers();
+            alert("Import successful!");
+        };
+        reader.readAsText(file);
+    }
+
+    function exportToCSV() {
+        let csv = "Name,Email,Phone,Last Called,Notes\n";
+        customers.forEach(c => {
+            csv += `${c.name},${c.email || ''},${c.phone},${c.lastCalled},${c.notes.replace(/,/g, " ")}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'crm_backup.csv'; a.click();
     }
 
     function showDetails(index) {
         currentEditIndex = index;
         const c = customers[index];
         document.getElementById('detailTitle').innerText = c.name;
-        document.getElementById('detailEmail').innerText = "Email: " + c.email;
-        document.getElementById('detailPhone').innerText = "Phone: " + (c.phone || "N/A");
-        document.getElementById('lastContacted').innerText = "Last Contacted: " + (c.lastCalled || "Never");
-        document.getElementById('custNotes').value = c.notes || "";
+        document.getElementById('detailPhone').innerText = "Phone: " + c.phone;
+        document.getElementById('lastContacted').innerText = "Last Call: " + c.lastCalled;
+        document.getElementById('custNotes').value = c.notes;
         document.getElementById('listView').classList.add('hidden');
         document.getElementById('detailsView').classList.remove('hidden');
     }
 
-    // (Remaining helper functions stay the same)
-    function saveNotes() { customers[currentEditIndex].notes = document.getElementById('custNotes').value; saveToStorage(); alert("Saved!"); }
-    function exportToCSV() {
-        let csvContent = "Name,Email,Phone,Last Called,Notes\n";
-        customers.forEach(c => {
-            let cleanNotes = c.notes.replace(/,/g, " ");
-            csvContent += `${c.name},${c.email},${c.phone},${c.lastCalled},${cleanNotes}\n`;
-        });
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'crm_data.csv'; a.click();
+    function makeCall() {
+        const now = new Date();
+        const time = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+        customers[currentEditIndex].lastCalled = time;
+        saveToStorage();
+        window.location.href = "tel:" + customers[currentEditIndex].phone;
     }
-    function showList() { document.getElementById('listView').classList.remove('hidden'); document.getElementById('detailsView').classList.add('hidden'); displayCustomers(); }
-    function deleteCustomer(index) { if(confirm("Delete?")) { customers.splice(index, 1); saveToStorage(); displayCustomers(); } }
+
+    function saveNotes() {
+        customers[currentEditIndex].notes = document.getElementById('custNotes').value;
+        saveToStorage();
+        alert("Notes updated!");
+    }
+
+    function showList() {
+        document.getElementById('listView').classList.remove('hidden');
+        document.getElementById('detailsView').classList.add('hidden');
+        displayCustomers();
+    }
+
+    function deleteCustomer(index) {
+        if(confirm("Delete contact?")) {
+            customers.splice(index, 1);
+            saveToStorage();
+            displayCustomers();
+        }
+    }
+
     function saveToStorage() { localStorage.setItem('myCustomers', JSON.stringify(customers)); }
     function loadCustomers() { displayCustomers(); }
     function filterCustomers() {
@@ -132,76 +169,3 @@
 </script>
 </body>
 </html>
-<style>
-    /* 1. The Main Theme Variables - CHANGE THESE COLORS! */
-    :root {
-        --primary-color: #1a237e;    /* Deep Navy */
-        --accent-color: #00c853;     /* Success Green */
-        --bg-color: #f0f2f5;         /* Light Grey Background */
-        --text-color: #333;
-        --card-bg: #ffffff;
-    }
-
-    body { 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        padding: 20px; 
-        background-color: var(--bg-color); 
-        color: var(--text-color);
-        display: flex; 
-        justify-content: center; 
-    }
-
-    .container { 
-        width: 100%; 
-        max-width: 400px; 
-        background: var(--card-bg); 
-        padding: 25px; 
-        border-radius: 20px; /* Softer, rounder corners */
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-    }
-
-    h2 { color: var(--primary-color); text-align: center; margin-bottom: 25px; }
-
-    input, textarea { 
-        width: 100%; 
-        padding: 14px; 
-        margin: 10px 0; 
-        border: 2px solid #eee; /* Thicker borders */
-        border-radius: 10px; 
-        box-sizing: border-box;
-        transition: border-color 0.3s;
-    }
-
-    input:focus { border-color: var(--primary-color); outline: none; }
-
-    button { 
-        width: 100%; 
-        padding: 15px; 
-        background-color: var(--primary-color); 
-        color: white; 
-        border: none; 
-        border-radius: 10px; 
-        cursor: pointer; 
-        font-weight: bold; 
-        font-size: 16px;
-        transition: transform 0.1s, opacity 0.2s;
-    }
-
-    button:active { transform: scale(0.98); } /* Bouncy button effect */
-
-    .list-item { 
-        background: #fff; 
-        margin-bottom: 12px; 
-        padding: 15px; 
-        border-radius: 12px; 
-        border: 1px solid #eee;
-        border-left: 6px solid var(--primary-color); /* Brand accent strip */
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .export-btn { background-color: #4527a0; margin-top: 20px; }
-    .back-btn { background-color: #757575; }
-    .timestamp { color: #757575; font-size: 0.8em; margin-top: 4px; display: block; }
-</style>
