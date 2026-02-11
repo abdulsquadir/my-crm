@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Business CRM with Export</title>
+    <title>Business CRM Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; display: flex; justify-content: center; }
@@ -14,6 +14,7 @@
         .delete-btn { position: absolute; right: 10px; top: 12px; color: red; font-weight: bold; }
         .hidden { display: none; }
         .back-btn { background-color: #6c757d; margin-bottom: 10px; }
+        .timestamp { font-size: 0.85em; color: #666; font-style: italic; margin-top: 5px; }
     </style>
 </head>
 <body onload="loadCustomers()">
@@ -23,16 +24,12 @@
         <h2>My Business CRM</h2>
         <input type="text" id="searchInput" placeholder="Search..." onkeyup="filterCustomers()">
         <hr>
-        <h4>Add New:</h4>
         <input type="text" id="custName" placeholder="Full Name">
         <input type="email" id="custEmail" placeholder="Email">
         <input type="tel" id="custPhone" placeholder="Phone">
         <button onclick="addCustomer()">Add Customer</button>
-        
-        <h3>Customer List</h3>
         <ul id="customerList" style="list-style: none; padding: 0;"></ul>
-        
-        <button onclick="exportToCSV()" class="export-btn">📥 Export to Excel (CSV)</button>
+        <button onclick="exportToCSV()" class="export-btn">📥 Export to Excel</button>
     </div>
 
     <div id="detailsView" class="hidden">
@@ -40,7 +37,8 @@
         <h2 id="detailTitle"></h2>
         <p id="detailEmail"></p>
         <p id="detailPhone"></p>
-        <button onclick="makeCall()" style="background-color: #28a745;">📞 Call Now</button>
+        <p id="lastContacted" class="timestamp"></p>
+        <button onclick="makeCall()" style="background-color: #28a745;">📞 Call & Record Time</button>
         <hr>
         <textarea id="custNotes" placeholder="Notes..."></textarea>
         <button onclick="saveNotes()">Save Notes</button>
@@ -70,7 +68,8 @@
         const email = document.getElementById('custEmail').value;
         const phone = document.getElementById('custPhone').value;
         if (name && email) {
-            customers.push({ name, email, phone, notes: "" });
+            // Added 'lastCalled' property
+            customers.push({ name, email, phone, notes: "", lastCalled: "Never" });
             saveToStorage();
             displayCustomers();
             document.getElementById('custName').value = '';
@@ -79,33 +78,23 @@
         }
     }
 
-    // --- NEW: EXPORT LOGIC ---
-    function exportToCSV() {
-        if (customers.length === 0) {
-            alert("No customers to export!");
-            return;
+    function makeCall() {
+        const phone = customers[currentEditIndex].phone;
+        if (phone) {
+            // 1. Get the current date and time
+            const now = new Date();
+            const timestamp = now.toLocaleDateString() + " at " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // 2. Update the customer data
+            customers[currentEditIndex].lastCalled = timestamp;
+            saveToStorage();
+            
+            // 3. Update the screen
+            document.getElementById('lastContacted').innerText = "Last Contacted: " + timestamp;
+            
+            // 4. Actually dial the number
+            window.location.href = "tel:" + phone;
         }
-
-        // 1. Create the Header row
-        let csvContent = "Name,Email,Phone,Notes\n";
-
-        // 2. Add each customer as a row
-        customers.forEach(c => {
-            // Clean notes of any commas so they don't break the CSV format
-            let cleanNotes = c.notes.replace(/,/g, " ");
-            csvContent += `${c.name},${c.email},${c.phone},${cleanNotes}\n`;
-        });
-
-        // 3. Create a download link
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('hidden', '');
-        a.setAttribute('href', url);
-        a.setAttribute('download', 'my_customers.csv');
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
     }
 
     function showDetails(index) {
@@ -114,35 +103,26 @@
         document.getElementById('detailTitle').innerText = c.name;
         document.getElementById('detailEmail').innerText = "Email: " + c.email;
         document.getElementById('detailPhone').innerText = "Phone: " + (c.phone || "N/A");
+        document.getElementById('lastContacted').innerText = "Last Contacted: " + (c.lastCalled || "Never");
         document.getElementById('custNotes').value = c.notes || "";
         document.getElementById('listView').classList.add('hidden');
         document.getElementById('detailsView').classList.remove('hidden');
     }
 
-    function saveNotes() {
-        customers[currentEditIndex].notes = document.getElementById('custNotes').value;
-        saveToStorage();
-        alert("Saved!");
+    // (Remaining helper functions stay the same)
+    function saveNotes() { customers[currentEditIndex].notes = document.getElementById('custNotes').value; saveToStorage(); alert("Saved!"); }
+    function exportToCSV() {
+        let csvContent = "Name,Email,Phone,Last Called,Notes\n";
+        customers.forEach(c => {
+            let cleanNotes = c.notes.replace(/,/g, " ");
+            csvContent += `${c.name},${c.email},${c.phone},${c.lastCalled},${cleanNotes}\n`;
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'crm_data.csv'; a.click();
     }
-
-    function makeCall() {
-        window.location.href = "tel:" + customers[currentEditIndex].phone;
-    }
-
-    function showList() {
-        document.getElementById('listView').classList.remove('hidden');
-        document.getElementById('detailsView').classList.add('hidden');
-        displayCustomers();
-    }
-
-    function deleteCustomer(index) {
-        if(confirm("Delete?")) {
-            customers.splice(index, 1);
-            saveToStorage();
-            displayCustomers();
-        }
-    }
-
+    function showList() { document.getElementById('listView').classList.remove('hidden'); document.getElementById('detailsView').classList.add('hidden'); displayCustomers(); }
+    function deleteCustomer(index) { if(confirm("Delete?")) { customers.splice(index, 1); saveToStorage(); displayCustomers(); } }
     function saveToStorage() { localStorage.setItem('myCustomers', JSON.stringify(customers)); }
     function loadCustomers() { displayCustomers(); }
     function filterCustomers() {
